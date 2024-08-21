@@ -173,6 +173,8 @@ async def get_pagamento(request: Request, id_pedido: int = Path(...)):
             response, "O pedido em questão não está apto a receber pagamento."
         )
         return response
+    # muda o estado do pedido para PENDENTE
+    PedidoRepo.alterar_estado(id_pedido, EstadoPedido.PENDENTE.value)
     # captura os itens do pedido
     itens = ItemPedidoRepo.obter_por_pedido(pedido.id)
     total_pedido = sum([item.valor_item for item in itens])
@@ -398,7 +400,8 @@ async def get_detalhespedido(
     id_pedido: int = Path(...),
 ):
     pedido = PedidoRepo.obter_por_id(id_pedido)
-    if pedido.id_usuario != request.state.usuario.id:
+    
+    if pedido.id_cliente != request.state.cliente.id:
         response = RedirectResponse(url="/pedidos", status_code=status.HTTP_302_FOUND)
         return adicionar_mensagem_erro(
             response,
@@ -410,3 +413,20 @@ async def get_detalhespedido(
         "pages/detalhespedido.html",
         {"request": request, "pedido": pedido},
     )
+
+
+@router.post("/post_cancelar_pedido", response_class=RedirectResponse)
+async def post_cancelar_pedido(
+    request: Request,
+    id_pedido: int = Form(0),
+):
+    pedido = PedidoRepo.obter_por_id(id_pedido)
+    if not pedido or pedido.id_cliente != request.state.cliente.id:
+        response=RedirectResponse(url="/cliente/pedidos", status_code=status.HTTP_302_FOUND)
+        return adicionar_mensagem_erro(response, "Pedido não encontrado. Verifique o número do pedido e tente novamente.",)
+    PedidoRepo.alterar_estado(id_pedido, EstadoPedido.CANCELADO.value)
+    
+    response=RedirectResponse(url="/cliente/pedidos", status_code=status.HTTP_303_SEE_OTHER)
+    
+    adicionar_mensagem_sucesso(response, "Pedido cancelado com sucesso.")
+    return response
