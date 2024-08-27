@@ -18,8 +18,6 @@
         {% if pedido.estado == "pendente": %}
         <button class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#confirmarCancelamento">Cancelar Pedido</button>
         <!-- Modal para confirmar o cancelamento -->
-
-
         {% include "includes/modal_confirmar_cancelar_pedido.html"%}
 
         {% endif %}
