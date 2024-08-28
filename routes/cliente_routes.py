@@ -4,12 +4,12 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import mercadopago as mp
 import os
 
-from dtos.alterar_cliente_dto import AlterarClienteDTO
+from dtos.alterar_usuario_dto import AlterarUsuarioDTO
 from dtos.alterar_senha_dto import AlterarSenhaDTO
-from models.cliente_model import Cliente
+from models.usuario_model import Usuario
 from models.item_pedido_model import ItemPedido
 from models.pedido_model import EstadoPedido, Pedido
-from repositories.cliente_repo import ClienteRepo
+from repositories.usuario_repo import UsuarioRepo
 from repositories.item_pedido_repo import ItemPedidoRepo
 from repositories.pedido_repo import PedidoRepo
 from repositories.produto_repo import ProdutoRepo
@@ -38,7 +38,7 @@ async def get_pedidos(request: Request, periodo:str = Query("todos")):
         case "90":
             data_inicial = data_final - timedelta(days=90)
 
-    pedidos = PedidoRepo.obter_por_periodo(request.state.cliente.id, data_inicial, data_final)
+    pedidos = PedidoRepo.obter_por_periodo(request.state.usuario.id, data_inicial, data_final)
     return templates.TemplateResponse(
         "pages/pedidos.html",
         {"request": request, "pedidos":pedidos},
@@ -56,11 +56,11 @@ async def get_cadastro(request: Request):
 
 
 @router.post("/post_cadastro", response_class=JSONResponse)
-async def post_cadastro(request: Request, alterar_dto: AlterarClienteDTO):
-    id = request.state.cliente.id
+async def post_cadastro(request: Request, alterar_dto: AlterarUsuarioDTO):
+    id = request.state.usuario.id
     cliente_data = alterar_dto.model_dump()
     response = JSONResponse({"redirect": {"url": "/cliente/cadastro"}})
-    if ClienteRepo.alterar(Cliente(id, **cliente_data)):
+    if UsuarioRepo.alterar(Usuario(id, **cliente_data)):
         adicionar_mensagem_sucesso(response, "Cadastro alterado com sucesso!")
     else:
         adicionar_mensagem_erro(
@@ -79,14 +79,14 @@ async def get_senha(request: Request):
 
 @router.post("/post_senha", response_class=JSONResponse)
 async def post_senha(request: Request, alterar_dto: AlterarSenhaDTO):
-    email = request.state.cliente.email
-    cliente_bd = ClienteRepo.obter_por_email(email)
+    email = request.state.usuario.email
+    cliente_bd = UsuarioRepo.obter_por_email(email)
     nova_senha_hash = obter_hash_senha(alterar_dto.nova_senha)
     response = JSONResponse({"redirect": {"url": "/cliente/senha"}})
     if not conferir_senha(alterar_dto.senha, cliente_bd.senha):
         adicionar_mensagem_erro(response, "Senha atual incorreta!")
         return response
-    if ClienteRepo.alterar_senha(cliente_bd.id, nova_senha_hash):
+    if UsuarioRepo.alterar_senha(cliente_bd.id, nova_senha_hash):
         adicionar_mensagem_sucesso(response, "Senha alterada com sucesso!")
     else:
         adicionar_mensagem_erro(response, "Não foi possível alterar sua senha!")
@@ -95,8 +95,8 @@ async def post_senha(request: Request, alterar_dto: AlterarSenhaDTO):
 
 @router.get("/sair", response_class=RedirectResponse)
 async def get_sair(request: Request):
-    if request.state.cliente:
-        ClienteRepo.alterar_token(request.state.cliente.email, "")
+    if request.state.usuario:
+        UsuarioRepo.alterar_token(request.state.usuario.email, "")
     response = RedirectResponse("/", status.HTTP_303_SEE_OTHER)
     excluir_cookie_auth(response)
     adicionar_mensagem_sucesso(response, "Saída realizada com sucesso!")
@@ -106,7 +106,7 @@ async def get_sair(request: Request):
 @router.get("/carrinho")
 async def get_carrinho(request: Request):
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     if pedido_carrinho:
@@ -129,7 +129,7 @@ async def get_carrinho(request: Request):
 @router.get("/confirmacaopedido")
 async def get_confirmacaopedido(request: Request):
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     if not pedido_carrinho:
@@ -139,7 +139,7 @@ async def get_confirmacaopedido(request: Request):
         return RedirectResponse("/cliente/carrinho", status.HTTP_303_SEE_OTHER)
     valor_total = sum([item.valor_produto * item.quantidade for item in itens_pedido])
     PedidoRepo.atualizar_para_fechar(
-        pedido_carrinho.id, request.state.cliente.endereco, valor_total
+        pedido_carrinho.id, request.state.usuario.endereco, valor_total
     )
      # pedido_carrinho = PedidoRepo.obter_por_id(pedido_carrinho.id)
     # pedido_carrinho.endereco_entrega = pedido_carrinho.endereco_entrega.replace(
@@ -157,7 +157,7 @@ async def get_confirmacaopedido(request: Request):
 async def get_pagamento(request: Request, id_pedido: int = Path(...)):
     pedido = PedidoRepo.obter_por_id(id_pedido)
     # se o pedido não existe, ou não pertence ao cliente logado
-    if not pedido or (pedido and (pedido.id_cliente != request.state.cliente.id)):
+    if not pedido or (pedido and (pedido.id_cliente != request.state.usuario.id)):
         response = RedirectResponse(
             url="/cliente/pedidos", status_code=status.HTTP_302_FOUND
         )
@@ -259,7 +259,7 @@ async def post_adicionar_carrinho(request: Request, id_produto: int = Form(...))
     produto = ProdutoRepo.obter_um(id_produto)
     mensagem = f"O produto <b>{produto.nome}</b> foi adicionado ao carrinho."
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     if pedido_carrinho == None:
@@ -267,9 +267,9 @@ async def post_adicionar_carrinho(request: Request, id_produto: int = Form(...))
             0,  # id
             datetime.now(),
             0,  # valor_total
-            request.state.cliente.endereco,
+            request.state.usuario.endereco,
             EstadoPedido.CARRINHO.value,
-            request.state.cliente.id,
+            request.state.usuario.id,
         )
         pedido_carrinho = PedidoRepo.inserir(pedido_carrinho)
     qtde = ItemPedidoRepo.obter_quantidade_por_produto(pedido_carrinho.id, id_produto)
@@ -290,7 +290,7 @@ async def post_adicionar_carrinho(request: Request, id_produto: int = Form(...))
 async def post_aumentar_item(request: Request, id_produto: int = Form(0)):
     produto = ProdutoRepo.obter_um(id_produto)
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     if pedido_carrinho == None:
@@ -324,7 +324,7 @@ async def post_aumentar_item(request: Request, id_produto: int = Form(0)):
 async def post_reduzir_item(request: Request, id_produto: int = Form(0)):
     produto = ProdutoRepo.obter_um(id_produto)
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     response = RedirectResponse("/cliente/carrinho", status.HTTP_303_SEE_OTHER)
@@ -360,7 +360,7 @@ async def post_remover_item(request:Request,id_produto:int = Form(0)):
         adicionar_mensagem_alerta(response, "Produto não encontrado.")
         return response
     pedidos = PedidoRepo.obter_por_estado(
-        request.state.cliente.id, EstadoPedido.CARRINHO.value
+        request.state.usuario.id, EstadoPedido.CARRINHO.value
     )
     pedido_carrinho = pedidos[0] if pedidos else None
     response = RedirectResponse("/cliente/carrinho", status.HTTP_303_SEE_OTHER)
@@ -386,7 +386,7 @@ async def get_pedidoconfirmado(
     id_pedido: int = Path(...),
 ):
     pedido = PedidoRepo.obter_por_id(id_pedido)
-    if pedido.id_cliente != request.state.cliente.id:
+    if pedido.id_cliente != request.state.usuario.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     PedidoRepo.alterar_estado(id_pedido, EstadoPedido.PAGO.value)
     return templates.TemplateResponse(
@@ -402,7 +402,7 @@ async def get_detalhespedido(
 ):
     pedido = PedidoRepo.obter_por_id(id_pedido)
     
-    if pedido.id_cliente != request.state.cliente.id:
+    if pedido.id_cliente != request.state.usuario.id:
         response = RedirectResponse(url="/pedidos", status_code=status.HTTP_302_FOUND)
         return adicionar_mensagem_erro(
             response,
@@ -422,7 +422,7 @@ async def post_cancelar_pedido(
     id_pedido: int = Form(0),
 ):
     pedido = PedidoRepo.obter_por_id(id_pedido)
-    if not pedido or pedido.id_cliente != request.state.cliente.id:
+    if not pedido or pedido.id_cliente != request.state.usuario.id:
         response=RedirectResponse(url="/cliente/pedidos", status_code=status.HTTP_302_FOUND)
         return adicionar_mensagem_erro(response, "Pedido não encontrado. Verifique o número do pedido e tente novamente.",)
     PedidoRepo.alterar_estado(id_pedido, EstadoPedido.CANCELADO.value)
