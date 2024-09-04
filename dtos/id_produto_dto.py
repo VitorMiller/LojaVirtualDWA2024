@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from util.validators import *
 
 
-class ExcluirProdutoDTO(BaseModel):
+class IdProdutoDTO(BaseModel):
     id_produto: int
 
 
