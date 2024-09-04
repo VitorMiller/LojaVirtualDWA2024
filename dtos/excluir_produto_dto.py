@@ -5,12 +5,12 @@ from util.validators import *
 
 
 class ExcluirProdutoDTO(BaseModel):
-    id: int
+    id_produto: int
 
 
-    @field_validator("id")
+    @field_validator("id_produto")
     def validar_id(cls, v):
-        msg = is_greater_than(v, "id", 0)
+        msg = is_greater_than(v, "Id do Produto", 0)
         if msg:
             raise ValueError(msg)
         return v
