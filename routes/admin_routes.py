@@ -11,7 +11,9 @@ from models.pedido_model import EstadoPedido
 from models.produto_model import Produto
 from repositories.pedido_repo import PedidoRepo
 from repositories.produto_repo import ProdutoRepo
+from repositories.item_pedido_repo import ItemPedidoRepo
 
+from repositories.usuario_repo import UsuarioRepo
 from util.auth_jwt import conferir_senha, criar_token
 
 router = APIRouter(prefix="/admin")
@@ -65,8 +67,6 @@ async def cancelar_pedido(id_pedido:int = Path(..., title ="Id do Pedido", ge=1)
     return JSONResponse(pd.to_dict(),status_code=404) 
 
 
-
-
 @router.post("/evoluir_pedido/{id_pedido}", status_code=204)
 async def evoluir_pedido(id_pedido:int = Path(..., title ="Id do Pedido", ge=1)):
     pedido = PedidoRepo.obter_por_id(id_pedido)
@@ -78,22 +78,25 @@ async def evoluir_pedido(id_pedido:int = Path(..., title ="Id do Pedido", ge=1))
     estados = [e.value for e in list(EstadoPedido) if e!=EstadoPedido.CANCELADO]
     indice = estados.index(estado_atual)
     indice += 1
-    if indice < len(estados)-1: 
+    if indice < len(estados): 
         novo_estado = estados[indice]
         if PedidoRepo.alterar_estado(id_pedido, novo_estado): return None
     pd = ProblemDetailsDto("int", f"O pedido com id <b>{id_pedido}</b> não pode ter seu estado evoluído para <b>cancelado</b>.", "state_change_invalid", ["body", "id"])
     return JSONResponse(pd.to_dict(),status_code=404) 
-
     
 
 @router.get("/obter_pedido/{id_pedido}")
 async def obter_pedido(id_pedido: int = Path(..., title="Id do Pedido", ge=1)):
     pedido = PedidoRepo.obter_por_id(id_pedido)
+    if pedido:
+        itens = ItemPedidoRepo.obter_por_pedido(pedido.id)
+        cliente = UsuarioRepo.obter_por_id(pedido.id_cliente)
+        pedido.itens = itens
+        pedido.cliente = cliente
+        return pedido
     if pedido: return pedido
     pd = ProblemDetailsDto("int", f"O pedido com id <b>{id_pedido}</b> não foi encontrado.", "value_not_found", ["body", "id"])
     return JSONResponse(pd.to_dict(),status_code=404) 
-
-
 
 
 @router.get("/obter_pedidos_por_estado/{estado}")
