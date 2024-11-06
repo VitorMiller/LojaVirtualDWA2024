@@ -17,10 +17,10 @@
     <tbody>
         {% for p in pedidos: %}
         <tr>
-            <td>{{"{:06d}".format(p.id)}}</td>
-            <td>{{p.data_hora}}</td>
-            <td>{{"{:,.02f}".format(p.valor_total)}}</td>
-            <td>{{p.estado}}</td>
+            <td>{{ "{:06d}".format(p.id) }}</td>
+            <td>{{ p.data_hora }}</td>
+            <td>{{ "{:,.2f}".format(p.valor_total) }}</td>
+            <td>{{ p.estado }}</td>
             <td>
                 <a class="btn btn-danger btn-sm" href="/cliente/detalhespedido/{{ p.id }}">
                     Ver Detalhes

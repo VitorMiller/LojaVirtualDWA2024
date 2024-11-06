@@ -12,8 +12,8 @@ async def obter_usuario_logado(request: Request) -> Optional[Usuario]:
         token = request.cookies[NOME_COOKIE_AUTH]
         if token.strip() == "":
             return None
-        cliente = UsuarioRepo.obter_por_token(token)
-        return cliente
+        usuario = UsuarioRepo.obter_por_token(token)
+        return usuario
     except KeyError:
         return None
 
@@ -39,6 +39,7 @@ async def checar_autorizacao(request: Request):
     if (area_do_cliente and usuario.perfil != 1) or (area_do_admin and usuario.perfil != 0):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
+
 def obter_hash_senha(senha: str) -> str:
     try:
         hashed = bcrypt.hashpw(senha.encode(), bcrypt.gensalt())
@@ -59,3 +60,15 @@ def gerar_token(length: int = 32) -> str:
         return secrets.token_hex(length)
     except ValueError:
         return ""
+
+
+def configurar_swagger_auth(app):
+    app.openapi_schema = app.openapi()
+    app.openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    app.openapi_schema["security"] = [{"BearerAuth": []}]

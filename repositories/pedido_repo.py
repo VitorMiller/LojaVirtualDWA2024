@@ -90,7 +90,7 @@ class PedidoRepo:
         except sqlite3.Error as ex:
             print(ex)
             return False
-
+        
     @classmethod
     def atualizar_valor_total(
         cls, id: int, valor_total: float = 0
@@ -98,7 +98,7 @@ class PedidoRepo:
         if not valor_total:
             itens = ItemPedidoRepo.obter_por_pedido(id)
             if itens:
-                valor_total=sum([item.valor_item for item in itens])
+                valor_total = sum([item.valor_item for item in itens])
         try:
             with obter_conexao() as conexao:
                 cursor = conexao.cursor()
@@ -113,8 +113,6 @@ class PedidoRepo:
         except sqlite3.Error as ex:
             print(ex)
             return False
-
-
 
     @classmethod
     def excluir(cls, id: int) -> bool:
@@ -210,17 +208,13 @@ class PedidoRepo:
             print(ex)
             return None
         
-        
     @classmethod
     def obter_todos_por_estado(cls, estado: int) -> List[Pedido]:
         try:
             with obter_conexao() as conexao:
                 cursor = conexao.cursor()
                 tuplas = cursor.execute(
-                    SQL_OBTER_TODOS_POR_ESTADO,
-                    (
-                        estado,
-                    ),
+                    SQL_OBTER_TODOS_POR_ESTADO, (estado,),
                 ).fetchall()
                 pedidos = [Pedido(*t) for t in tuplas]
                 return pedidos

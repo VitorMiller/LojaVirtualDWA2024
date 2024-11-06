@@ -26,5 +26,6 @@ class Pedido:
     endereco_entrega: Optional[str] = None
     estado: Optional[EstadoPedido] = None
     id_cliente: Optional[int] = None
-    cliente: Optional[Usuario]= None
+    cliente: Optional[Usuario] = None
     itens: Optional[list[ItemPedido]] = None
+
